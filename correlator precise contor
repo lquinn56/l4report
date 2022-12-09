@@ -1,0 +1,192 @@
+import matplotlib.pyplot as plt
+import csv
+import numpy as np
+import pandas as pd
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_v0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_v = list(reader)
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_r0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_r = list(reader)#
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_fermi_day.csv", newline='') as f:
+    reader = csv.reader(f)
+    day = list(reader)
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_fermi.csv", newline='') as f:
+    reader = csv.reader(f)
+    week = list(reader)
+    
+o_b =  open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_b.txt")
+o_i =  open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_i.txt")
+titles = day[0]
+for i in range(0,len(titles)):
+    titles[i] = [titles[i],i]
+"read in optical data"
+rc=0
+o_bmag = []
+o_bdate = []
+o_idate = []
+o_imag = [] 
+o_rmag = []
+o_rdate = []
+o_vdate = []
+o_vmag = []
+day_start= []
+day_stop =[]
+day_f = []
+test_stat = [] 
+week_start = []
+week_f = []
+week_stop = [] 
+
+
+for row in o_b:
+    rc +=1 
+    spacecount = 0 
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1:
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                o_bmag.append(float(magi))
+            if row[i] == " ":
+                spacecount +=1
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != "MJD" : 
+        o_bdate.append(float(mjdi))
+rc=0
+for row in o_i:
+    
+    rc +=1 
+    spacecount = 0 
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1:
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                o_imag.append(float(magi))
+            if row[i] == " ":
+                spacecount +=1 
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != "MJD" : 
+        o_idate.append(float(mjdi))
+for i in range(1,len(o_v)):
+    o_vmag.append(float(o_v[i][2]))
+    o_vdate.append(float(o_v[i][1]))
+for i in range(1 ,len(o_r)):
+    o_rmag.append(float(o_r[i][2]))
+    o_rdate.append(float(o_r[i][1]))
+for i in range(0,len(day)):
+    if day[i][13] == "FALSE":
+        day_start.append(float(day[i][0]))
+        day_stop.append(float(day[i][1]))
+        day_f.append(float(day[i][11]))
+        test_stat.append(float(day[i][15]))
+for i in range(0,len(week)):
+    if week[i][13] == "FALSE":
+        week_start.append(week[i][0])
+        week_stop.append(week[i][1])
+        week_f.append(week[i][11])
+"ASsign the desired band to V so that it will work"
+"correct the zwicky data, ensure that only one observation per night"
+o_rdatex = [] 
+o_rmagx = []
+for i in range(1,len(o_rdate)):
+    if int(str(o_rdate[i])[:5]) !=  int(str(o_rdate[i-1])[:5]):
+        o_rdatex.append(o_rdate[i])
+        o_rmagx.append(o_rmag[i])
+o_vmag = o_imag
+o_vdate = o_idate
+o_vf = []
+for k in range(1,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    "jansky"
+    # comp[k][0] = 3631*(10**(-26))*10**(-comp[k][0]/2.5)
+"convert fermi data from seconds since 2001 to mjd"
+for i in range(0,len(day_start)):
+    starter = day_start[i]/(86400)
+    day_start[i] = (starter + 51910)
+    stopper = day_stop[i]/86400
+    day_stop[i] = (stopper + 51910)
+"shift either one of the magnitudes foward / backgward"
+"shift in days, needs to be done before the comparison "
+"exclusively shifting optical data as it is arbitrary which one moves"
+
+shift_range = 5
+"if s_r is 30 then will be sampling at +0.1,+0.2... to +3 mag"
+xax = np.linspace(0, shift_range, num = shift_range+1)
+"need to find the correction factor for the magnitude "
+"shift the magnitude in increments of 0.1 to find the value where teh correlation is the highest"
+c_gamma = [ list(a) for a in zip(day_start, day_f)]
+c_opti = [ list(a) for a in zip(o_vdate, o_vf)]
+
+dct_v = {}
+
+for x in range(0,shift_range+1):       
+    shifted_op = []
+    for j in range(0,len(c_opti)):
+        shifted_op.append([c_opti[j][0] + x ,c_opti[j][1]])
+        dct_v['lst_%s' % x] = shifted_op
+
+
+accu = 0 
+v_comp = {}
+for a in range(0,len(dct_v)):
+    templ = []
+    for u in range(0, len(day_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if day_start[u] <= dct_v["lst_"+str(a)][v][0] <= day_stop[u]:
+                templ.append([day_f[u], dct_v["lst_"+ str(a)][v][1], test_stat[u]])
+                accu += 1 
+                v_comp["val_%s" %a] = templ
+p = []
+s = []
+k = []
+for i in range(0,len(v_comp)):
+    odat = []
+    gamdat = []
+    ts = []
+    for j in range(0,len(v_comp["val_" + str(i)])):
+        odat.append(np.log(v_comp["val_" + str(i)][j][1]))
+        gamdat.append(np.log(v_comp["val_" + str(i)][j][0]))
+        ts.append(v_comp["val_"+str(i)][j][2])
+    plt.figure()
+    plt.scatter(odat,gamdat, s = 2, c = ts, cmap = "gnuplot")
+    cbar = plt.colorbar(orientation="vertical", extend="both",
+                   pad=0.05, shrink=1, aspect=20, format="%.3f")
+    cbar.set_label(label="Test Statistic", size=15)
+
+    x = pd.Series(odat)
+    y = pd.Series(gamdat)
+    pearson = x.corr(y)
+    p.append(pearson)
+    spearman = x.corr(y, method = "spearman")
+    s.append(spearman)
+    kendall = x.corr(y, method = "kendall")
+    k.append(kendall)
+    plt.title("Data Shifted by " + str(i) + " days" )
+    plt.text(min(x), max(y) -0.5 ,"Pearson = " + str("{0:.3f}".format(pearson)) +"\n"
+             + "Spearman = " + str("{0:.3f}".format(spearman)) + "\n"
+             "Kendall = " + str("{0:.3f}".format(kendall)), fontsize = 8)
+    plt.xlabel("Log(Optical Flux in I band)")
+    plt.ylabel("Log(Gamma Flux)")
+    plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\GammaOpCorrICGx" + str(i) + ".jpeg", dpi = 500)
+
+# plt.figure()
+# plt.scatter(xax,k, s = 2 , label = "kendall", color = "blue", ls = "--")
+# plt.scatter(xax,s, s = 2 , label = "spearman", color = "black", ls = "--")
+# plt.scatter(xax,p, color = "red", label = "pearson", s = 2, ls = "--")
+# plt.legend()
+# plt.title("Variation of Correlation Coefficients with Shift")
+# plt.xlabel("Magnitude of Shift (days)")
+# # plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\CoefficientsV.jpeg", dpi = 500)
+
+
