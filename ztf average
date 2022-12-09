@@ -1,0 +1,57 @@
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_fermi_day.csv", newline='') as f:
+    reader = csv.reader(f)
+    day = list(reader)
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_r0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_r = list(reader)
+o_rdate = []
+o_rmag = []
+for i in range(1,len(o_r)):
+    o_rmag.append(float(o_r[i][2]))
+    o_rdate.append(float(o_r[i][1]))
+    
+o_rdatex = [] 
+o_rmagx = []
+# for i in range(1,len(o_vdate)):
+#     if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+#         o_rdatex.append(o_vdate[i])
+#         o_rmagx.append(o_vmag[i])
+ 
+for i in range(0,len(o_rdate)):
+    summer = 0
+    counter = 1
+    sumdate = 0 
+    i = 1
+    while int(str(o_rdate[i])[:5]) == int(str(o_rdate[i-1])[:5]):
+        summer += o_rmag[i]
+        counter += 1
+        # print(counter)
+        sumdate += o_rdate[i]
+        i += 1 
+        # print(i)
+        if int(str(o_rdate[i])[:5]) != int(str(o_rdate[i-1])[:5]):
+            # print(10)
+            o_rdatex.append([sumdate/counter,i])
+            o_rmagx.append(summer/counter)
+        else:
+            continue
+# calc = []       
+# for i in range(1,len(o_rdate)):
+#     if int(str(o_rdate[i])[:5]) == int(str(o_rdate[i-1])[:5]):
+#         k=i
+#         while int(str(o_rdate[k])[:5]) == int(str(o_rdate[k+1])[:5]):
+#             calc.append(o_rdate[k])
+#             # print("hi")
+#             k+=1 
+  
+    
+plt.figure
+plt.scatter(o_rdatex,  o_rmagx, label = "avg")
+# plt.scatter(o_rdate, o_rmag)
+plt.legend()
+    
