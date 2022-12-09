@@ -1,0 +1,98 @@
+"read in data, checking correlation of gamma dn optical fluxes."
+"shift dayly data by 7 days, 52shifts on either side, so the total result is [-1yr,+1yr]"
+"originally isolate V band, data, find v band data thats included within the day"
+"ensure that the correction to the ZTF data is done / check the result of it? "
+"the ztf correction only occurs in the R band, so while doing V is not relevant."
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_fermi_day.csv", newline='') as f:
+    reader = csv.reader(f)
+    day = list(reader)
+# with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_v0.csv", newline='') as f:
+#     reader = csv.reader(f)
+#     o_v = list(reader)
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_r0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_v = list(reader)
+o_vdate = []
+o_vmag = []
+test_stat = [] 
+day_start = []
+day_f = []
+day_stop = [] 
+for i in range(1,len(o_v)):
+    o_vmag.append(float(o_v[i][2]))
+    o_vdate.append(float(o_v[i][1]))
+for i in range(0,len(day)):
+    if day[i][13] == "FALSE":
+        day_start.append(float(day[i][0]))
+        day_stop.append(float(day[i][1]))
+        day_f.append(float(day[i][11]))
+        test_stat.append(float(day[i][15]))
+        
+"when using R Band data need to remove several datapoints that occur on the same day."
+o_rdatex = [] 
+o_rmagx = []
+for i in range(1,len(o_vdate)):
+    if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+        o_rdatex.append(o_vdate[i])
+        o_rmagx.append(o_vmag[i])
+o_vmag = o_rmagx
+o_vdate = o_rdatex
+o_vf = []
+for k in range(1,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    "units of jansky"
+for i in range(0,len(day_start)):
+    starter = day_start[i]/(86400)
+    day_start[i] = (starter + 51910)
+    stopper = day_stop[i]/86400
+    day_stop[i] = (stopper + 51910)
+"starting with 2 days either side"
+shift = 140
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+c_gamma = [ list(a) for a in zip(day_start,day_stop,day_f)]
+c_opti = [ list(a) for a in zip(o_vdate, o_vf)]
+
+dct_v = {}
+for x in range(-shift,shift+1):
+    shift_factor = x        
+    shifted_op = []
+    for j in range(0,len(c_opti)):
+        shifted_op.append([o_vdate[j] + shift_factor , o_vf[j]])
+        dct_v['lst_%s' % x] = shifted_op
+v_comp = {}
+for a in range(-shift,shift+1):
+    templ = []
+    for u in range(0, len(day_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if day_start[u] <= dct_v["lst_"+str(a)][v][0] <= day_stop[u]:
+                templ.append([day_f[u], dct_v["lst_"+ str(a)][v][1]])
+                v_comp["val_%s" %a] = templ
+correlation = [] 
+correlation_n = []
+for i in range(-shift,shift+1):
+    summer = 0 
+    for k in range(0,len(v_comp["val_" + str(i)])):
+        summer += v_comp["val_" + str(i)][k][0] * v_comp["val_" + str(i)][k][1]
+    correlation.append(summer)
+    correlation_n.append(summer/len(v_comp["val_" + str(i)]))
+
+plt.scatter(xax,correlation, s = 2, color = "red")
+plt.xlabel("Number of days Data shifted by")
+plt.ylabel("Corellation Factor")
+plt.xticks(np.arange(-50, 51, 10))
+plt.title("R Band")
+plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\G-OCorrFact(R)_red", dpi = 500)
+plt.show()
+plt.figure()
+plt.scatter(xax,correlation_n, s = 2, color = "red")
+plt.xlabel("Number of days Data shifted by")
+plt.ylabel("Corellation Factor (Normalised)")
+plt.xticks(np.arange(-50, 51, 10))
+plt.title("R Band")
+plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\G-OCorrFact(R)n_red", dpi = 500)
+
