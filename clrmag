@@ -1,0 +1,168 @@
+import matplotlib.pyplot as plt
+import numpy as np 
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+
+
+"bdat is what vdat is being subtracted from, labels now arbitrary "
+bdat =  open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_b.txt")
+vdat =  open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_i.txt")
+
+rc = 0
+bmag = []
+bmjdc = [] 
+vmjdc = []
+bmagerr = []
+b_zpt = [] 
+for row in bdat:
+    spacecount = 0 
+
+    rc +=1 
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1: 
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                bmag.append(float(magi))
+                berr = row[i+1:i+13]
+                berr.split()
+                zpt0 = (berr.split(None, 2))
+                bmagerr.append(float(zpt0[1]))
+                # magi = row[i+1:i+10]
+                # bmag.append(float(magi))
+                # berr = row[i+4:i+15]
+                # berr.split()
+                # zpt0 = (berr.split(None, 2))
+                # bmagerr.append(float(zpt0[1]))
+            if spacecount == 35:
+                zpt = row[i+1:i+7]
+                b_zpt.append(float(zpt))
+            if row[i] == " ":
+                spacecount +=1   
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != 'MJD':
+        bmjdc.append(float(mjdi))
+
+
+rc = 0
+vmag = []
+vmagerr = [] 
+v_zpt = [] 
+for row in vdat:
+    spacecount = 0 
+
+    rc +=1 
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1: 
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                vmag.append(float(magi))
+                verr = row[i+1:i+13]
+                verr.split()
+                zpt0 = (verr.split(None, 2))
+                vmagerr.append(float(zpt0[1]))
+                "when using s5_v the index needs to be shifted over slightly for some readon"
+                "also needs to be done for the magerr"
+
+               
+            if spacecount == 35:
+                zpt = row[i+1:i+7]
+                v_zpt.append(float(zpt))
+            if row[i] == " ":
+                spacecount +=1    
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != 'MJD':
+        vmjdc.append(float(mjdi))
+
+
+
+max0 = 10
+"zip the two lists together so that the magnitudes are now associated with the date"
+bjdmag = [list(a) for a in zip(bmjdc, bmag,bmagerr,b_zpt)]
+vjdmag = [list(a) for a in zip(vmjdc, vmag,vmagerr, v_zpt)]
+"removal of a point too dim in the ngc i data"
+for k in range(0,len(vjdmag)):
+    if vjdmag[k][1] > max0:
+        max0 = vjdmag[k][1]
+        holder = k 
+# del vjdmag[343]
+        
+
+"starting with B and V"
+complist = []
+for i in range(len(bjdmag)):
+    for j in range(len(vjdmag)):
+        
+        if abs(bjdmag[i][0] - vjdmag[j][0]) < 0.5:
+            complist.append([bjdmag[i],vjdmag[j]])
+
+mjddm = []
+bmags = [] 
+bmagserr = []
+mjddm0 = []
+bmags0 = []
+bmagserr0 = [] 
+counter = 0
+for i in complist:
+    if i[0][3] > 24 and i[1][3] > 24:
+        dm = i[0][1] - i[1][1]
+        errdm = np.sqrt((i[0][2])**2 + (i[1][2])**2)
+        
+        mjddm.append([i[0][0],dm,errdm])
+        bmags.append(i[0][1])
+        bmagserr.append(i[0][2])
+    else:
+        counter += 1 
+        mjddm0.append([i[0][0],dm,errdm])
+        bmags0.append(i[0][1])
+        errdm = np.sqrt((i[0][2])**2 + (i[1][2])**2)
+        bmagserr0.append(i[0][2])
+mini = 10
+for k in range(0,len(mjddm)):
+    if mjddm[k][1] < mini:
+        mini = mjddm[k][1]
+    
+
+    
+smjddm = sorted(mjddm,key=lambda x: (x[0],x[1]))
+smjddm0 = sorted(mjddm0,key=lambda x: (x[0],x[1]))
+smjd = [i[0] for i in smjddm]
+smjd0 = [i[0] for i in smjddm0]
+sdm = [i[1] for i in smjddm]
+sdm0 = [i[1] for i in smjddm0]
+serrdm = [i[2] for i in smjddm]
+serrdm0 =  [i[2] for i in smjddm0]
+    
+
+maxi = max(sdm)
+"removing supposed outlier"
+# for i in range(0,len(sdm)-1):
+#     if sdm[i] == maxi:
+#         del sdm[i]
+#         del bmags[i]
+plt.figure()
+plt.scatter(bmags,sdm, s = 2, ls = "-")
+plt.xlabel("Bmag")
+plt.ylabel("B-I")
+plt.title("ngc1275")
+plt.Figure()
+plt.errorbar(bmags,sdm, yerr = serrdm, xerr = bmagserr,
+             fmt = "o", capsize = 2, color = "black", markersize = 0.5)
+
+plt.errorbar(bmags0,sdm0,yerr = serrdm0, xerr = bmagserr0,
+              color = "red", markersize = 0.5, capsize = 2, linestyle = " ")
+# plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\ngc1275_BIBmagEZ01.jpeg", dpi = 500)
+
+            
+
+
+
+
+
