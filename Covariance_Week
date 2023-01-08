@@ -1,0 +1,161 @@
+
+"read in data, checking correlation of gamma dn optical fluxes."
+"shift weekly data by 7 days, 52shifts on either side, so the total result is [-1yr,+1yr]"
+"originally isolate V band, data, find v band data thats included within the week"
+"ensure that the correction to the ZTF data is done / check the result of it? "
+"the ztf correction only occurs in the R band, so while doing V is not relevant."
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+start = time.time()
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+with open(r"D:\1Work\L4PROJ\projdata\bl_lac_fermi.csv", newline='') as f:
+    reader = csv.reader(f)
+    week = list(reader)
+with open(r"D:\1Work\L4PROJ\projdata\bl_lac_v0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_v = list(reader)
+with open(r"D:\1Work\L4PROJ\projdata\bl_lac_r0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_r = list(reader)
+o_b =  open(r"D:\1Work\L4PROJ\projdata\bl_lac_b.txt")
+o_bmag = []
+o_bdate = []
+o_i =  open(r"D:\1Work\L4PROJ\projdata\bl_lac_i.txt")
+o_imag = []
+o_idate = []
+
+rc = 0
+for row in o_b:
+    rc +=1
+    spacecount = 0
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1:
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                o_bmag.append(float(magi))
+            if row[i] == " ":
+                spacecount +=1
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != "MJD" :
+        o_bdate.append(float(mjdi))
+rc = 0
+for row in o_i:
+    rc +=1
+    spacecount = 0
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1:
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                o_imag.append(float(magi))
+            if row[i] == " ":
+                spacecount +=1
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != "MJD" :
+        o_idate.append(float(mjdi))
+
+o_vdate = []
+o_vmag = []
+test_stat = []
+week_start = []
+week_f = []
+week_stop = []
+o_rdate = []
+o_rmag = []
+for i in range(1,len(o_v)):
+    o_vmag.append(float(o_v[i][2]))
+    o_vdate.append(float(o_v[i][1]))
+for i in range(1,len(o_r)):
+    o_rmag.append(float(o_r[i][2]))
+    o_rdate.append(float(o_r[i][1]))
+for i in range(0,len(week)):
+    if week[i][13] == "FALSE":
+        week_start.append(float(week[i][0]))
+        week_stop.append(float(week[i][1]))
+        week_f.append(float(week[i][11]))
+        test_stat.append(float(week[i][15]))
+     
+"when using R Band data need to remove several datapoints that occur on the same day."
+o_vmag = o_rmag
+o_vdate = o_rdate
+o_rdatex = []
+o_rmagx = []
+for i in range(1,len(o_vdate)):
+    if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+        o_rdatex.append(o_vdate[i])
+        o_rmagx.append(o_vmag[i])
+
+o_vf = []
+
+for k in range(0,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    "units of jansky"
+# o_vf.reverse()
+for i in range(0,len(week_start)):
+    starter = week_start[i]/(86400)
+    week_start[i] = (starter + 51910)
+    stopper = week_stop[i]/86400
+    week_stop[i] = (stopper + 51910)
+"starting with 2 weeks either side"
+shift = 20
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+
+# o_vdate = o_fdate
+# o_vf = 
+dct_v = {}
+for x in range(-shift,shift+1):
+    shift_factor = x*7
+    # print(shift_factor)
+    shifted_op = []
+    for j in range(0,len(o_vf)):
+        shifted_op.append([o_vdate[j]+ shift_factor, o_vf[j]])
+        dct_v["lst_%s" % x ] = shifted_op
+v_comp = {}
+t_dct = {}
+for a in range(-shift,shift+1):
+    templ = []
+    test = []
+    for u in range(0,len(week_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if week_start[u] <= dct_v["lst_"+str(a)][v][0] <= week_stop[u]:
+                templ.append([week_f[u], dct_v["lst_"+ str(a)][v][1]])
+                v_comp["val_%s" %a] = templ
+
+"find covariance matrix"
+covarimats = {}
+for i in range(-shift,shift+1):
+    cv1 = []
+    cv2 = []
+    for j in range(0,len(v_comp["val_%s"%i])):
+        cv1.append(v_comp["val_%s"%i][j][0])
+        cv2.append(v_comp["val_%s"%i][j][1])
+        cov_mat= np.stack((cv1, cv2), axis = 1)
+        covari = np.cov(cov_mat)
+    covarimats["c_%s"%i] = covari
+"take all the values aside from the diagonals"
+"cov(x,y) = cov(y,x), so those values need to be exlusded"
+"can append to a list then turn it into a set to remove dupliates"
+corrval = []
+for u in range(-shift,shift+1):
+    covs = []
+    for i in range(0,len(covarimats["c_%s"%u])):
+        for j in range(0,len(covarimats["c_%s"%u])):
+            if i != j:
+                covs.append(covarimats["c_%s"%u][i][j])
+    total = sum(covs)
+    numb = len(covs)
+    corrval.append([total/numb])
+    
+plt.scatter(xax,corrval)
+end = time.time()
+print(end-start)
