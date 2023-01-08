@@ -1,0 +1,108 @@
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+start = time.time()
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+
+with open(r"D:\1Work\L4PROJ\projdata\bl_lac_fermi_day.csv", newline='') as f:
+    reader = csv.reader(f)
+    day = list(reader)
+with open(r"D:\1Work\L4PROJ\projdata\bl_lac_v0e.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_v = list(reader)
+
+
+o_vdate = []
+o_vmag = []
+day_start = []
+day_f = []
+day_stop = []
+o_ve = []
+day_err = [] 
+for i in range(1,len(o_v)):
+    o_vmag.append(float(o_v[i][2]))
+    o_vdate.append(float(o_v[i][1]))
+    o_ve.append(float(o_v[i][3]))
+for i in range(0,len(day)):
+    if day[i][13] == "FALSE":
+        day_start.append(float(day[i][0]))
+        day_stop.append(float(day[i][1]))
+        day_f.append(float(day[i][11]))
+        day_err.append(float(day[i][12]))
+o_vf = []
+o_ver = []
+for k in range(0,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    f = 10**(-float(o_vmag[k])/2.5)
+    econv = f*o_ve[k]*np.log(10)/2.5
+    o_ver.append(econv)
+    
+    "units of jansky"
+for i in range(0,len(day_start)):
+    starter = day_start[i]/(86400)
+    day_start[i] = (starter + 51910)
+    stopper = day_stop[i]/86400
+    day_stop[i] = (stopper + 51910)
+
+o_rdatex = []
+o_rfx = []
+o_rfex = [] 
+
+for i in range(1,len(o_vdate)):
+    if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+        o_rdatex.append(o_vdate[i])
+        o_rfx.append(o_vf[i])
+        o_rfex.append(o_ver[i])
+o_vf = o_rfx
+o_vdate = o_rdatex
+o_ver = o_rfex
+
+shift = 20
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+
+
+dct_v = {}
+for x in range(-shift,shift+1):
+    shift_factor = x*7
+    shifted_op = []
+    for j in range(0,len(o_vf)):
+        shifted_op.append([o_vdate[j]+ shift_factor, o_vf[j], o_ver[j]])
+        dct_v["lst_%s" % x ] = shifted_op
+
+v_comp = {}
+t_dct = {}
+for a in range(-shift,shift+1):
+    templ = []
+    test = []
+    for u in range(0,len(day_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if day_start[u] <= dct_v["lst_"+str(a)][v][0] <= day_stop[u]:
+                templ.append([day_f[u], day_err[u] ,dct_v["lst_"+ str(a)][v][1],dct_v["lst_"+ str(a)][v][2]])
+                v_comp["val_%s" %a] = templ
+"gamma f, gamma err, optical f , optical err"
+oval = []
+gval = []
+etime = 0  
+for a in range(-shift,shift+1):
+    hold_o = []
+    hold_g = []
+    for b in range(0,len(v_comp["val_%s"%a])):
+        hold_o.append(v_comp["val_%s"%a][b][2])
+        hold_g.append(v_comp["val_%s"%a][b][0])
+    oval.append([np.std(hold_o), np.mean(hold_o)])
+    gval.append([np.std(hold_g), np.mean(hold_g)])
+dcf = [ ]
+for u in range(-shift,shift+1):
+    accu = 0 
+    for v in range(0,len(v_comp["val_%s"%u])):
+        udcft = (v_comp["val_%s"%u][v][0] - gval[u][1]) * (v_comp["val_%s"%u][v][2] - oval[u][1])
+        udcfb = np.sqrt((gval[u][0]**2 - v_comp["val_%s"%u][v][1]**2 ) * (oval[u][0]**2 - v_comp["val_%s"%u][v][3]**2))
+        # if (gval[u][0]**2 - v_comp["val_%s"%u][v][1]**2 ) * (oval[u][0]**2 - v_comp["val_%s"%u][v][3]**2) < 0:
+            # etime += 1 
+        udc = udcft/udcfb
+        accu += udc
+    dcf.append(accu/ len(v_comp["val_%s"%a]))
+
+plt.scatter(xax,dcf)
