@@ -1,0 +1,123 @@
+import matplotlib.pyplot as plt
+import csv
+import numpy as np 
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+with open(r"D:\1Work\L4PROJ\projdata\bl_lac_fermi.csv", newline='') as f:
+    reader = csv.reader(f)
+    week = list(reader)
+with open(r"D:\1Work\L4PROJ\projdata\bl_lac_v0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_v = list(reader)
+
+o_vdate = []
+o_vmag = []
+test_stat = []
+week_start = []
+week_f = []
+week_stop = []
+for i in range(1,len(o_v)):
+    o_vmag.append(float(o_v[i][2]))
+    o_vdate.append(float(o_v[i][1]))
+for i in range(0,len(week)):
+    if week[i][13] == "FALSE":
+        week_start.append(float(week[i][0]))
+        week_stop.append(float(week[i][1]))
+        week_f.append(float(week[i][11]))
+        test_stat.append(float(week[i][15]))
+o_rdatex = []
+o_rmagx = []
+for i in range(1,len(o_vdate)):
+    if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+        o_rdatex.append(o_vdate[i])
+        o_rmagx.append(o_vmag[i])
+o_vmag = o_rmagx
+o_vdate = o_rdatex
+o_vf = []
+
+for k in range(0,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    "units of jansky"
+# o_vf.reverse()
+for i in range(0,len(week_start)):
+    starter = week_start[i]/(86400)
+    week_start[i] = (starter + 51910)
+    stopper = week_stop[i]/86400
+    week_stop[i] = (stopper + 51910)
+"need to find reference mean and weighted std dev values"
+mean_g = np.mean(week_f)
+mean_o = np.mean(o_vf)
+std_g = np.std(week_f)
+std_o = np.std(o_vf)
+plt.scatter(week_start,week_f)
+fl_g = mean_g + 3*std_g
+fl_o = mean_o + 3*std_o
+# plt.plot([min(week_start), max(week_start)], [fl_g,fl_g] )
+# plt.show()
+# plt.figure()
+# plt.scatter(o_vdate,o_vf)
+plt.plot([min(o_vdate), max(o_vdate)], [fl_o, fl_o] )
+"65"
+n_bin = 70
+bin_len = len(o_vdate)//n_bin
+bins = {}
+for i  in range(n_bin):
+    j = 0
+    tbin = [] 
+
+    while j < bin_len:
+        tbin.append([o_vdate[j + bin_len*i], o_vf[j+bin_len*i]])
+        bins["b%s"%i] = tbin
+        j += 1 
+avgs = []
+for u in range(n_bin):
+    summer = 0 
+    for v in range(bin_len):
+        summer += bins["b%s"%u][v][1]
+    avgs.append(summer/bin_len)
+for u in range(n_bin):
+    for v in range(bin_len):
+        bins["b%s"%u][v][1] = avgs[u]
+plt.figure()
+x = []
+y = [] 
+for i in range(n_bin):
+    for j in range(bin_len):
+        x.append(bins["b%s"%i][j][0])
+        y.append(bins["b%s"%i][j][1])
+plt.scatter(o_vdate,o_vf, alpha =0.3, s = 2, color = "black")
+
+plt.plot(x,y, color = "black")
+plt.plot([min(o_vdate), max(o_vdate)], [fl_o, fl_o] , color = "red", linestyle = "--")
+
+"now for gamma"
+bin1 = {}
+bin_lenx = len(week_start)//n_bin
+for l  in range(n_bin):
+    k = 0
+    tbin = [] 
+    while k < bin_len:
+        tbin.append([week_start[k + bin_lenx*l], week_f[k+bin_lenx*l]])
+        bin1["c%s"%l] = tbin
+        k += 1 
+avgs = []
+for u in range(n_bin):
+    summer = 0 
+    for v in range(bin_len):
+        summer += bin1["c%s"%u][v][1]
+    avgs.append(summer/bin_len)
+for u in range(n_bin):
+    for v in range(bin_lenx):
+        bin1["c%s"%u][v][1] = avgs[u]
+plt.figure()
+x = []
+y = [] 
+for i in range(n_bin):
+    for j in range(bin_lenx):
+        x.append(bin1["c%s"%i][j][0])
+        y.append(bin1["c%s"%i][j][1])
+plt.scatter(week_start,week_f, alpha =0.3, s = 2, color = "black")
+
+plt.plot(x,y, color = "black")
+plt.plot([min(week_start), max(week_start)], [fl_g, fl_g], color = "red", linestyle = "--" )
+plt.savefig(r"D:\1Work\L4PROJ\projfig\binned.jpeg", dpi = 500)
