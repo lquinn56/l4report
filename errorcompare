@@ -1,0 +1,187 @@
+import csv 
+import matplotlib.pyplot as plt
+import numpy as np
+with open(r"C:/Users/zhxf62/Downloads/dcf_300_20.csv", newline='') as f:
+    reader = csv.reader(f)
+    dcf = list(reader)
+with open(r"C:/Users/zhxf62/Downloads/dcf_60_20_r.csv", newline='') as f:
+    reader = csv.reader(f)
+    dcf0 = list(reader)
+dcf_vals = [0.4183124014377693,
+ 0.42344223262532726,
+ 0.446456429895881,
+ 0.4904531865401924,
+ 0.4587101460819182,
+ 0.5215718528088207,
+ 0.47134613657102475,
+ 0.5247700793064952,
+ 0.537379285077789,
+ 0.49485952207456063,
+ 0.6941408600419243,
+ 0.6127404339339559,
+ 0.6379742347492946,
+ 0.6392249727454112,
+ 0.6471473090243474,
+ 0.6341159098325717,
+ 0.690081132873682,
+ 0.6286464836025393,
+ 0.6245899306365882,
+ 0.5575414297392243,
+ 0.6156946296661229,
+ 0.4976975016516547,
+ 0.49557931013251666,
+ 0.47935707639948255,
+ 0.43548119976942556,
+ 0.4941444362969335,
+ 0.5355505502847102,
+ 0.5444294642626988,
+ 0.46885224491882865,
+ 0.4560211331189868,
+ 0.4335303376939934,
+ 0.40321533524296455,
+ 0.44349802034625857,
+ 0.43969267294690406,
+ 0.39122406433053425,
+ 0.44563035981051485,
+ 0.42174731212623795,
+ 0.4719374969328016,
+ 0.4242482782707622,
+ 0.4630979702533648,
+ 0.44805599429711174]
+dcf_errs = [0.06377541632332794,
+ 0.05452780549096529,
+ 0.055674723626487434,
+ 0.06780998606080813,
+ 0.06402368002781132,
+ 0.07102267179945745,
+ 0.06574575396359572,
+ 0.07991805850070718,
+ 0.0758682643301657,
+ 0.0761919725096935,
+ 0.10253143943745645,
+ 0.0931174630747932,
+ 0.10591804022135587,
+ 0.10504898125564623,
+ 0.10074110303158967,
+ 0.0842448718032456,
+ 0.10679525674635355,
+ 0.08961639747399966,
+ 0.09399154196197967,
+ 0.07086695748216615,
+ 0.08858756001107201,
+ 0.0806629039997884,
+ 0.10674559007179064,
+ 0.08036768234587735,
+ 0.06474207004429451,
+ 0.08743523475783042,
+ 0.0969174812587715,
+ 0.09621010737845741,
+ 0.08027572273123526,
+ 0.06967292845442978,
+ 0.07937618402778354,
+ 0.05556018458177285,
+ 0.05742093683176896,
+ 0.06057703115668098,
+ 0.04657775898937794,
+ 0.06515001630067027,
+ 0.05598453830135242,
+ 0.06436261254436236,
+ 0.06029657432599994,
+ 0.07594038244447228,
+ 0.07366376021859689]
+
+shift = 20
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+
+d = {}
+x = 0 
+ind = 0 
+k = 3 
+while k < len(dcf0):
+    d[str(ind)] = dcf0[k]
+    ind += 1 
+    k+=4
+flat = {} 
+for i in range(0,len(d)):
+    res = str(d[str(i)]).strip('][').split(', ')
+    flat[str(i)] = res
+ifl = {}
+for i in range(0,len(d)):
+    tl = []
+    for k in range(0,len(flat[str(i)])): 
+        if  flat[str(i)][k][0] ==  "'":
+            tl.append(float(flat[str(i)][k][2:len(flat[str(i)][k])]))
+        elif flat[str(i)][k][len(flat[str(i)][k])-1] == "'":
+            tl.append(float(flat[str(i)][k][0:len(flat[str(i)][k])-2]))
+        else:
+            tl.append(float(flat[str(i)][k]))
+    ifl[str(i)] = tl 
+vals = {} 
+for x in range(0, len(ifl["0"])):
+    cas = [] 
+    for y in range(0,len(ifl)):
+        cas.append(ifl[str(y)][x])
+    vals[str(x)] = [np.mean(cas),np.std(cas)]
+shrink = {}     
+for h in range(0,len(vals)):
+    if 10 <= h <= 30:
+      shrink[str(h)] = vals[str(h)]
+plt.figure()
+for x in range(0,len(vals.keys())):
+    x = int(x)
+    plt.errorbar(x-20, vals[str(x)][0], yerr = vals[str(x)][1] , color  = "red", fmt = "o", capsize = 3,
+                  markersize = 40)
+d = {}
+x = 0 
+ind = 0 
+k = 3 
+while k < len(dcf):
+    d[str(ind)] = dcf[k]
+    ind += 1 
+    k+=4
+flat = {} 
+for i in range(0,len(d)):
+    res = str(d[str(i)]).strip('][').split(', ')
+    flat[str(i)] = res
+ifl = {}
+for i in range(0,len(d)):
+    tl = []
+    for k in range(0,len(flat[str(i)])): 
+        if  flat[str(i)][k][0] ==  "'":
+            tl.append(float(flat[str(i)][k][2:len(flat[str(i)][k])]))
+        elif flat[str(i)][k][len(flat[str(i)][k])-1] == "'":
+            tl.append(float(flat[str(i)][k][0:len(flat[str(i)][k])-2]))
+        else:
+            tl.append(float(flat[str(i)][k]))
+    ifl[str(i)] = tl 
+
+        
+vals = {} 
+for x in range(0, len(ifl["0"])):
+    cas = [] 
+    for y in range(0,len(ifl)):
+        cas.append(ifl[str(y)][x])
+    vals[str(x)] = [np.mean(cas),np.std(cas)]
+shrink = {}     
+for h in range(0,len(vals)):
+    if 10 <= h <= 30:
+      shrink[str(h)] = vals[str(h)]
+   
+
+
+    
+for x in range(0,len(vals.keys())):
+    x = int(x)
+    plt.errorbar(x-20, vals[str(x)][0], yerr = vals[str(x)][1] , color  = "black", fmt = "o", capsize = 3,
+                  markersize = 4) 
+    
+plt.errorbar(xax, dcf_vals, yerr = dcf_errs, color = "blue", fmt = "o", capsize = 3,
+              markersize = 4, label = "DCF Error " )
+plt.scatter([-20],[0.6], label = "300 Resamples", color = "black", alpha = 0 )
+plt.scatter([-20],[0.6], label = "60 Resamples", color = "red", alpha = 0 )
+
+plt.legend()
+
+plt.xlabel("Shift Magnitude (Days)")
+plt.ylabel("Direct Correlation Function")
+plt.title("Two different realisations of 60 resamples")    
