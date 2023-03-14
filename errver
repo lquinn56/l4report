@@ -1,0 +1,90 @@
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+plt.rcParams['mathtext.rm'] = "Times New Roman"
+plt.rcParams['mathtext.it'] = "Times New Roman"
+plt.rcParams['mathtext.bf'] = "Times New Roman"
+# with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\dcf_300_20.csv", newline='') as f:
+#     reader = csv.reader(f)
+#     dcf = list(reader)
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\dcf_300_20.csv", newline='') as f:
+    reader = csv.reader(f)
+    dcf = list(reader)
+shift = 20
+xax = np.linspace(-shift, shift, num = (shift*2)+1)  
+d = {} 
+"3,7,11,15 etc"
+x = 0 
+ind = 0 
+ 
+k = 3 
+while k < len(dcf):
+    d[str(ind)] = dcf[k]
+    ind += 1 
+    k+=4
+flat = {} 
+for i in range(0,len(d)):
+    res = str(d[str(i)]).strip('][').split(', ')
+    flat[str(i)] = res
+
+ifl = {}
+for i in range(0,len(d)):
+    tl = []
+    for k in range(0,len(flat[str(i)])): 
+        if  flat[str(i)][k][0] ==  "'":
+            tl.append(float(flat[str(i)][k][2:len(flat[str(i)][k])]))
+        elif flat[str(i)][k][len(flat[str(i)][k])-1] == "'":
+            tl.append(float(flat[str(i)][k][0:len(flat[str(i)][k])-2]))
+        else:
+            tl.append(float(flat[str(i)][k]))
+    ifl[str(i)] = tl 
+    
+
+
+plt.figure()  
+vals = {} 
+for x in range(0, len(ifl["0"])):
+    cas = [] 
+    for y in range(0,len(ifl)):
+        cas.append(ifl[str(y)][x])
+    vals[str(x)] = [np.mean(cas),np.std(cas)]
+shrink = {}     
+for h in range(0,len(vals)):
+    if 10 <= h <= 30:
+      shrink[str(h)] = vals[str(h)]
+   
+
+
+    
+for x in range(0,len(vals.keys())):
+    x = int(x)
+    plt.errorbar(x-20, vals[str(x)][0], yerr = vals[str(x)][1] , color  = "red", fmt = "o", capsize = 3,
+                  markersize = 4  )  
+
+
+errs = []     
+for x in range(0,len(vals)):
+    errs.append(vals[str(x)][1])
+print(vals["21"][1])
+print(np.mean(errs))
+
+
+plt.xlabel("Shift Magnitude (Days)")
+plt.ylabel("Direct Correlation Function")
+plt.title("300 Samples for Each Shift")
+plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\VEB300_20", dpi = 500)
+
+    
+        
+    
+
+
+plt.figure()
+
+
+        
+    
+
