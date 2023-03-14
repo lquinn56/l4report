@@ -1,0 +1,161 @@
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+import random as rand
+
+# import scipy.optimize
+
+st = time.time()
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_fermi_day.csv", newline='') as f:
+    reader = csv.reader(f)
+    day = list(reader)
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_r0e.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_v = list(reader)
+o_vdate = []
+o_vmag = []
+day_start = []
+day_f = []
+day_stop = [] 
+day_ef = [] 
+o_ve = [] 
+for i in range(1,len(o_v)):
+    o_vmag.append(float(o_v[i][2]))
+    o_vdate.append(float(o_v[i][1]))
+    o_ve.append(float(o_v[i][3]))
+for i in range(0,len(day)):
+    if day[i][13] == "FALSE":
+        day_start.append(float(day[i][0]))
+        day_stop.append(float(day[i][1]))
+        day_f.append(float(day[i][11]))
+        day_ef.append(float(day[i][12]))
+        
+"when using R Band data need to remove several datapoints that occur on the same day."
+o_vdatex = [] 
+o_vmagx = []
+o_vex = [] 
+for i in range(1,len(o_vdate)):
+    if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+        o_vdatex.append(o_vdate[i])
+        o_vmagx.append(o_vmag[i])
+        o_vex.append(o_ve[i])
+o_vmag = o_vmagx
+o_vdate = o_vdatex
+o_vmag_e = o_vex
+o_vf = []
+o_ver = []
+for k in range(0,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    f = 10**(-float(o_vmag[k])/2.5)
+    econv = f*o_ve[k]*np.log(10)/2.5
+    o_ver.append(econv)
+
+for i in range(0,len(day_start)):
+    starter = day_start[i]/(86400)
+    day_start[i] = (starter + 51910)
+    stopper = day_stop[i]/86400
+    day_stop[i] = (stopper + 51910)
+"generate samples"
+nsamp = 250
+samps = np.random.normal(loc = 0, size = nsamp )
+d_day = {}
+d_opti = {}
+for i in range(0,nsamp):
+    optistor = [] 
+    gamstor = [] 
+    for j in range(0,len(o_vf)):
+        s_opt = o_vf[j] + o_ver[j] * samps [i]
+        optistor.append(s_opt)
+    d_opti["samp_%s" %i]  = optistor
+
+    for k in range(0,len(day_f)):
+        s_gam = day_f[k] + day_ef[k] * samps[i]
+        gamstor.append(s_gam)
+    d_day["samp_%s"%i] = gamstor
+    
+shift = 20
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+
+opt_s = {}
+gam_s = {}
+for x in range(-shift,shift+1):
+    shift_fact = x 
+    for y in range(0,nsamp):
+        shiftl = [] 
+        for z in range(0,len(o_vf)):
+           shiftl.append([o_vdate[z]+ shift_fact, d_opti["samp_%s"%y][z], o_ver[z]])
+           opt_s["shi_%s_sam_%d"%(x,y)] = shiftl
+        
+for i in range(0,nsamp):      
+    shiftl = [] 
+    for j in range(0,len(day_f)):
+        shiftl.append([day_start[j],day_stop[j],d_day["samp_%s"%i][j],day_ef[j]])
+        gam_s["sam_%s"%i] = shiftl
+
+comp = {}
+for a in range(0,nsamp):
+    for b in range(-shift,shift+1):
+        templ = []
+        for u in range(0,len(day_start)):
+            for v in range(0,len(o_vf)):
+                if day_start[u] <= opt_s["shi_%s_sam_%d"%(b,a)][v][0] <= day_stop[u]:
+                    templ.append([gam_s["sam_%s"%a][u][2],day_ef[u],opt_s["shi_%s_sam_%d"%(b,a)][v][1], o_ver[v]])
+                    comp["sam_%s_shi_%d"%(a,b)] = templ
+        
+"need to get standard deviations, average values and errors."
+oval = {}
+gval = {}
+for a in range(0,nsamp):
+    for b in range(-shift,shift+1):
+        ho = [] 
+        hg = []
+        hoe = [] 
+        hge = [] 
+        for c in range(0,len(comp["sam_%s_shi_%d"%(a,b)])):
+            hg.append(comp["sam_%s_shi_%d"%(a,b)][c][0])
+            hge.append(comp["sam_%s_shi_%d"%(a,b)][c][1])
+            ho.append(comp["sam_%s_shi_%d"%(a,b)][c][2])
+            hoe.append(comp["sam_%s_shi_%d"%(a,b)][c][3])
+            # print(comp["sam_%s_shi_%d"%(a,b)][c])
+        oval[str(a)] = [np.std(ho),np.mean(ho),np.mean(hoe)]
+        gval[str(a)] = [np.std(hg),np.mean(hg), np.mean(hge)]
+dcf = {}
+# prog = 0 
+for i in range(0,nsamp):
+    dcf_s = [] 
+
+    for j in range(-shift,shift+1):
+        accu = 0 
+        for k in range(0, len(comp["sam_%s_shi_%d"%(i,j)])):
+            top = (comp["sam_%s_shi_%d"%(i,j)][k][0]- gval[str(i)][1]) * (comp["sam_%s_shi_%d"%(i,j)][k][2]- oval[str(i)][1])
+            bot = np.sqrt((gval[str(a)][0]**2 -gval[str(a)][2]**2)* (oval[str(a)][0]**2 -oval[str(a)][2]**2))
+            frac = top/bot
+            accu += frac
+        dcf_s.append(accu/len(comp["sam_%s_shi_%d"%(i,j)]))
+    dcf[str(i)] = dcf_s
+"plot all of the different samples"
+plt.figure()
+for z in range(0,nsamp):
+    plt.scatter(xax,dcf[str(z)], s = 6)
+    
+plt.xlabel("Magnitude of Shift (Days)")
+plt.ylabel("Direct Correlation Function")
+plt.title(str(nsamp) + " samples, shift +- %s days"%shift)
+
+# plt.figure()
+smush = {} 
+# for i in range(0,nsamp):
+    
+# for i in range
+
+
+
+end = time.time()
+print("runtime = "  + str((end-st)/60) + " min")
+plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\ " + str(nsamp) + "_" + str(shift), dpi = 500)
+
+        
+        
