@@ -1,0 +1,117 @@
+from numpy import loadtxt
+import matplotlib.pyplot as plt
+from lmfit.models import GaussianModel
+from lmfit.models import LorentzianModel
+from lmfit import Parameters
+from lmfit import Minimizer
+from scipy.optimize import curve_fit
+from scipy import asarray as ar,exp
+
+mod = LorentzianModel()
+xax = [-20., -19., -18., -17., -16., -15., -14., -13., -12., -11., -10.,
+        -9.,  -8.,  -7.,  -6.,  -5.,  -4.,  -3.,  -2.,  -1.,   0.,   1.,
+         2.,   3.,   4.,   5.,   6.,   7.,   8.,   9.,  10.,  11.,  12.,
+        13.,  14.,  15.,  16.,  17.,  18.,  19.,  20.]
+dcf = [0.3505424158051604,
+ 0.32182746761091624,
+ 0.37402705903710043,
+ 0.4351387199391934,
+ 0.4166543800811709,
+ 0.46920699218742323,
+ 0.4350675320652101,
+ 0.5055473046613008,
+ 0.5930566119423587,
+ 0.5310501945003853,
+ 0.5556625932888002,
+ 0.5304993559969632,
+ 0.7612293786315003,
+ 0.6690354307449827,
+ 0.5950324243194621,
+ 0.841860517240216,
+ 0.7072845636081617,
+ 0.7783864201216298,
+ 0.8175410047877819,
+ 0.7279091965441472,
+ 0.8729277403865712,
+ 0.6445712837188111,
+ 0.7959007795300516,
+ 0.703372573912753,
+ 0.6180786694024397,
+ 0.6649259384482797,
+ 0.6930457633216855,
+ 0.5523942014529546,
+ 0.6110064120882367,
+ 0.5752632038598364,
+ 0.5185794074857174,
+ 0.5651224661917631,
+ 0.5119258697077681,
+ 0.5005755853334377,
+ 0.4416353726217798,
+ 0.5488098341412342,
+ 0.5115328030222548,
+ 0.516862085738782,
+ 0.43435933603556726,
+ 0.46850255346948244,
+ 0.4404059214027438]
+xax = np.array(xax)
+dcf = np.array(dcf)
+# for i in xax:
+#     i = int(i)
+xx = [] 
+yy = []
+fromzer = 20
+indexer = 20 - fromzer
+for i in range(-indexer, indexer):
+    xx.append(xax[i])
+    yy.append(dcf[i])
+x= [] 
+y = []
+for i in xax: 
+    if i not in xx:
+        x.append(i)
+for j in dcf:
+    if j not in yy:
+        y.append(j)
+x = np.array(x)
+y = np.array(y)
+# x = xax
+# y = dcf
+
+# mod = GaussianModel()
+
+pars = mod.guess(y, x=x)
+out = mod.fit(y, pars, x=x)
+new = [] 
+for i in out.init_fit:
+    new.append(i+0.28)
+
+plt.plot(x, out.best_fit, color = "red", label = "Lorentz Final")
+plt.plot(x, out.init_fit, color = "blue", label = "Lorenz Initial")
+plt.plot(x,new,color = "black", ls = ":", label = "shifted lorentz")
+plt.scatter(xax,dcf, color = "black")
+
+print(out.fit_report(min_correl=0.25))
+
+mod = GaussianModel()
+x = xax
+y = dcf
+pars = mod.guess(y, x=x)
+out = mod.fit(y, pars, x=x)
+
+plt.plot(x, out.init_fit, color = "green", label = "Gauss Initial")
+n = len(x)                          #the number of data
+mean = sum(x*y)/n                   #note this correction6
+sigma = sum(y*(x-mean)**2)/n        #note this correction
+
+def gaus(x,a,x0,sigma):
+    return a*exp(-(x-x0)**2/(2*sigma**2)) 
+
+popt,pcov = curve_fit(gaus,x,y,p0=[1,mean,sigma])
+
+# plt.scatter(xax,dcf,s = 10 , color = "green")
+plt.plot(x,gaus(x,*popt),marker = "x",label='scipy gauss', markersize = 8, color = "blue" )
+plt.plot(x, out.best_fit, color = "pink", label = "Gauss Final")
+
+plt.legend(loc = "upper left", fontsize = 8)
+
+# plt.savefig(r"C:/Users/Lukaj/OneDrive/Documents/Y4/ProjectFig/FitTest2.jpeg", dpi = 500)
