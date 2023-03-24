@@ -1,0 +1,130 @@
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+start = time.time()
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+
+
+body = "bllac"
+cbody = body.upper()
+start = time.time()
+
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\%s_daily_fermi.csv"%cbody, newline='') as f:
+    reader = csv.reader(f)
+    week = list(reader)
+
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\%s_radio.csv"%body, newline='') as f:
+    reader = csv.reader(f)
+    radio = list(reader)
+
+
+
+rad_f = []
+rad_date = []
+rad_fe = [] 
+week_start = []
+week_f = []
+week_stop = []
+week_err = [] 
+radmag = []
+raddat = [] 
+raderr = [] 
+for i in range(5, len(radio)):
+    radmag.append(float(radio[i][1]))
+    raddat.append(float(radio[i][0]))
+    raderr.append(float(radio[i][2]))
+"if using BL lac the false is upper case, for all other bodies it is lower."
+for i in range(0,len(week)):
+    if week[i][13] == "FALSE":
+        week_start.append(float(week[i][0]))
+        week_stop.append(float(week[i][1]))
+        week_f.append(float(week[i][11]))
+        week_err.append(float(week[i][12]))
+
+
+o_vf = radmag
+o_vdate = raddat
+o_ver = raderr
+    
+"units of jansky"
+for i in range(0,len(week_start)):
+    starter = week_start[i]/(86400)
+    week_start[i] = (starter + 51910)
+    stopper = week_stop[i]/86400
+    week_stop[i] = (stopper + 51910)
+
+shift = 20
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+
+
+dct_v = {}
+for x in range(-shift,shift+1):
+    shift_factor = x*7
+    shifted_op = []
+    for j in range(0,len(o_vf)):
+        shifted_op.append([o_vdate[j]+ shift_factor, o_vf[j], o_ver[j]])
+        dct_v["lst_%s" % x ] = shifted_op
+
+v_comp = {}
+t_dct = {}
+for a in range(-shift,shift+1):
+    templ = []
+    test = []
+    for u in range(0,len(week_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if week_start[u] <= dct_v["lst_"+str(a)][v][0] <= week_stop[u]:
+                templ.append([week_f[u], week_err[u] ,dct_v["lst_"+ str(a)][v][1],dct_v["lst_"+ str(a)][v][2]])
+                v_comp["val_%s" %a] = templ
+"gamma f, gamma err, optical f , optical err"
+oval = []
+gval = []
+eavg_g = []
+eavg_o = [] 
+etime = 0  
+for a in range(-shift,shift+1):
+    hold_o = []
+    hold_g = []
+    hold_oe = []
+    hold_ge = [] 
+    for b in range(0,len(v_comp["val_%s"%a])):
+        hold_o.append(v_comp["val_%s"%a][b][2])
+        hold_g.append(v_comp["val_%s"%a][b][0])
+        hold_oe.append(v_comp["val_%s"%a][b][3])
+        hold_ge.append(v_comp["val_%s"%a][b][1])
+    oval.append([np.std(hold_o), np.mean(hold_o)])
+    gval.append([np.std(hold_g), np.mean(hold_g)])
+    eavg_g.append(np.mean(hold_ge))
+    eavg_o.append(np.mean(hold_oe))
+    
+dcf = [ ]
+for u in range(-shift,shift+1):
+    accu = 0 
+    for v in range(0,len(v_comp["val_%s"%u])):
+        udcft = (v_comp["val_%s"%u][v][0] - gval[u][1]) * (v_comp["val_%s"%u][v][2] - oval[u][1])
+        udcfb = np.sqrt((gval[u][0]**2 - eavg_g[u]**2 ) * (oval[u][0]**2 - eavg_o[u]**2))
+        udc = udcft/udcfb
+        accu += udc
+    dcf.append(accu/ len(v_comp["val_%s"%a]))
+dcferr = [] 
+for u in range(-shift,shift+1):
+    for k in range(0,len(dcf)):
+        accu  = 0 
+        a = 0 
+        for v in range(0,len(v_comp["val_%s"%u])):
+            udcft = (v_comp["val_%s"%u][v][0] - gval[u][1]) * (v_comp["val_%s"%u][v][2] - oval[u][1])
+            udcfb = np.sqrt((gval[u][0]**2 - eavg_g[u]**2 ) * (oval[u][0]**2 - eavg_o[u]**2))
+            udcf = udcft/udcfb
+            a = (udcf - dcf[k])**2
+            accu+=a
+        sig = (1/(len(v_comp["val_%s"%u])-1)) * np.sqrt(accu)
+    dcferr.append(sig)
+plt.errorbar(xax,dcf, yerr = dcferr,color = "red", ls = " ", marker = "x", capsize = 3 , ecolor = "black")
+end = time.time()
+print(end-start)
+plt.xlabel("Time Shift (Weeks)")
+plt.ylabel("Direct Correlation Function")
+plt.title("%s DCF for Gamma / Radio Correlation"%cbody)
+plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\%s_%sweek_gr.jpeg"%(body,shift), dpi = 500)
+
