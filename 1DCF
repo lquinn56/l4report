@@ -1,0 +1,60 @@
+shift = 50
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+
+
+dct_v = {}
+for x in range(-shift,shift+1):
+    shift_factor = x
+    shifted_op = []
+    for j in range(0,len(o_vf)):
+        shifted_op.append([o_vdate[j]+ shift_factor, o_vf[j], o_ver[j]])
+        dct_v["lst_%s" % x ] = shifted_op
+
+v_comp = {}
+t_dct = {}
+for a in range(-shift,shift+1):
+    templ = []
+    test = []
+    for u in range(0,len(day_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if day_start[u] <= dct_v["lst_"+str(a)][v][0] <= day_stop[u]:
+                templ.append([day_f[u], day_err[u] ,dct_v["lst_"+ str(a)][v][1],dct_v["lst_"+ str(a)][v][2]])
+                v_comp["val_%s" %a] = templ
+                
+oval = []
+gval = []
+eavg_g = []
+eavg_o = [] 
+
+oval.append([np.std(o_vf), np.mean(o_vf)])
+gval.append([np.std(day_f), np.mean(day_f)])
+eavg_g = np.mean(day_err)
+eavg_o = np.mean(o_ver)
+    
+dcf = [ ]
+for u in range(-shift,shift+1):
+    accu = 0 
+    for v in range(0,len(v_comp["val_%s"%u])):
+        udcft = (v_comp["val_%s"%u][v][0] - gval[0][1]) * (v_comp["val_%s"%u][v][2] - oval[0][1])
+        udcfb = np.sqrt((gval[0][0]**2 - eavg_g**2 ) * (oval[0][0]**2 - eavg_o**2))
+        udc = udcft/udcfb
+        accu += udc
+    dcf.append(accu/ len(v_comp["val_%s"%u]))
+"finding the error on each dcf point"
+dcferr = [] 
+for u in range(-shift,shift+1):
+    for k in range(0,len(dcf)):
+        accu  = 0 
+        a = 0 
+        for v in range(0,len(v_comp["val_%s"%u])):
+            udcft = (v_comp["val_%s"%u][v][0] - gval[0][1]) * (v_comp["val_%s"%u][v][2] - oval[0][1])
+            udcfb = np.sqrt((gval[0][0]**2 - eavg_g**2 ) * (oval[0][0]**2 - eavg_o**2))
+            udcf = udcft/udcfb
+            a = (udcf - dcf[k])**2
+            accu+=a
+        sig = (1/(len(v_comp["val_%s"%u])-1)) * np.sqrt(accu)
+    dcferr.append(sig)
+        
+    
+# plt.scatter(xax,dcf)
+plt.errorbar(xax,dcf, yerr = dcferr,color = "black", ls = " ", marker = "o", capsize = 3 , ecolor = "black")
