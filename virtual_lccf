@@ -1,0 +1,234 @@
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+import random as rand
+
+# import scipy.optimize
+
+st = time.time()
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+with open(r"D:/1Work/L4PROJ/projdata/bl_lac_fermi_day.csv", newline='') as f:
+    reader = csv.reader(f)
+    day = list(reader)
+# with open(r"D:/1Work/L4PROJ/projdata/bl_lac_r0e.csv", newline='') as f:
+#     reader = csv.reader(f)
+#     o_v = list(reader)
+o_vdate = []
+o_vmag = []
+day_start = []
+day_f = []
+day_stop = [] 
+day_ef = [] 
+o_ve = [] 
+# for i in range(1,len(o_v)):
+#     o_vmag.append(float(o_v[i][2]))
+#     o_vdate.append(float(o_v[i][1]))
+#     o_ve.append(float(o_v[i][3]))
+for i in range(0,len(day)):
+    if day[i][13] == "FALSE":
+        day_start.append(float(day[i][0]))
+        day_stop.append(float(day[i][1]))
+        day_f.append(float(day[i][11]))
+        day_ef.append(float(day[i][12]))
+        
+odata =  open(r"D:\1Work\L4PROJ\projdata\bl_lac_b.txt")  
+rc = 0 
+for row in odata:
+    spacecount = 0 
+    rc +=1 
+    if rc > 1: 
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                o_vmag.append(float(magi))
+                err = row[i+8:i+13]
+                o_ve.append(float(err))
+            if row[i] == " ":
+                spacecount +=1   
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != 'MJD':
+        o_vdate.append(float(mjdi))
+o_vf = []
+o_ver = []
+for k in range(0,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    f = 10**(-float(o_vmag[k])/2.5)
+    econv = f*o_ve[k]*np.log(10)/2.5
+    o_ver.append(econv)
+        
+"when using R Band data need to remove several datapoints that occur on the same day."
+o_vdatex = [] 
+o_vmagx = []
+o_vex = [] 
+for i in range(1,len(o_vdate)):
+    if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+        o_vdatex.append(o_vdate[i])
+        o_vmagx.append(o_vmag[i])
+        o_vex.append(o_ve[i])
+o_vmag = o_vmagx
+o_vdate = o_vdatex
+o_vmag_e = o_vex
+o_vf = []
+o_ver = []
+for k in range(0,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    f = 10**(-float(o_vmag[k])/2.5)
+    econv = f*o_ve[k]*np.log(10)/2.5
+    o_ver.append(econv)
+
+for i in range(0,len(day_start)):
+    starter = day_start[i]/(86400)
+    day_start[i] = (starter + 51910)
+    stopper = day_stop[i]/86400
+    day_stop[i] = (stopper + 51910)
+shift = 20
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+dct_v = {}
+for x in range(-shift,shift+1):
+    shift_factor = x
+    shifted_op = []
+    for j in range(0,len(o_vf)):
+        shifted_op.append([o_vdate[j]+ shift_factor, o_vf[j], o_ver[j]])
+        dct_v["lst_%s" % x ] = shifted_op
+
+v_comp = {}
+t_dct = {}
+for a in range(-shift,shift+1):
+    templ = []
+    test = []
+    for u in range(0,len(day_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if day_start[u] <= dct_v["lst_"+str(a)][v][0] <= day_stop[u]:
+                templ.append([day_f[u], day_ef[u] ,dct_v["lst_"+ str(a)][v][1],dct_v["lst_"+ str(a)][v][2]])
+                v_comp["val_%s" %a] = templ
+                
+oval = []
+gval = []
+eavg_g = []
+eavg_o = [] 
+
+oval.append([np.std(o_vf), np.mean(o_vf)])
+gval.append([np.std(day_f), np.mean(day_f)])
+eavg_g = np.mean(day_ef)
+eavg_o = np.mean(o_ver)
+    
+dcf = [ ]
+for u in range(-shift,shift+1):
+    accu = 0 
+    for v in range(0,len(v_comp["val_%s"%u])):
+        udcft = (v_comp["val_%s"%u][v][0] - gval[0][1]) * (v_comp["val_%s"%u][v][2] - oval[0][1])
+        udcfb = np.sqrt((gval[0][0]**2 - eavg_g**2 ) * (oval[0][0]**2 - eavg_o**2))
+        udc = udcft/udcfb
+        accu += udc
+    dcf.append(accu/ len(v_comp["val_%s"%u]))
+"finding the error on each dcf point"
+dcferr = [] 
+for u in range(-shift,shift+1):
+    for k in range(0,len(dcf)):
+        accu  = 0 
+        a = 0 
+        for v in range(0,len(v_comp["val_%s"%u])):
+            udcft = (v_comp["val_%s"%u][v][0] - gval[0][1]) * (v_comp["val_%s"%u][v][2] - oval[0][1])
+            udcfb = np.sqrt((gval[0][0]**2 - eavg_g**2 ) * (oval[0][0]**2 - eavg_o**2))
+            udcf = udcft/udcfb
+            a = (udcf - dcf[k])**2
+            accu+=a
+        sig = (1/(len(v_comp["val_%s"%u])-1)) * np.sqrt(accu)
+    dcferr.append(sig)
+        
+    
+plt.errorbar(xax,dcf, yerr = dcferr,color = "black", ls = " ", marker = "o", capsize = 3 , ecolor = "black")
+plt.xlabel("Magnitude of Shift (Days)")
+plt.ylabel("Direct Correlation Factor")
+plt.title("True DCF BL Lac Gamma / V", fontweight = "bold")
+
+# "generate samples"
+nsamp = 40
+samps = np.random.normal(loc = 0, size = nsamp )
+d_day = {}
+d_opti = {}
+for i in range(0,nsamp):
+    optistor = [] 
+    gamstor = [] 
+    for j in range(0,len(o_vf)):
+        s_opt = o_vf[j] + o_ver[j] * samps [i]
+        optistor.append(s_opt)
+    d_opti["samp_%s" %i]  = optistor
+
+    for k in range(0,len(day_f)):
+        s_gam = day_f[k] + day_ef[k] * samps[i]
+        gamstor.append(s_gam)
+    d_day["samp_%s"%i] = gamstor
+
+
+opt_s = {}
+gam_s = {}
+for x in range(-shift,shift+1):
+    shift_fact = x 
+    for y in range(0,nsamp):
+        shiftl = [] 
+        for z in range(0,len(o_vf)):
+            shiftl.append([o_vdate[z]+ shift_fact, d_opti["samp_%s"%y][z]])
+            opt_s["shi_%s_sam_%d"%(x,y)] = shiftl
+        
+for i in range(0,nsamp):      
+    shiftl = [] 
+    for j in range(0,len(day_f)):
+        shiftl.append([day_start[j],day_stop[j],d_day["samp_%s"%i][j]])
+    gam_s["sam_%s"%i] = shiftl
+
+
+comp = {}
+for a in range(0,nsamp):
+    for b in range(-shift,shift+1):
+        templ = []
+        for u in range(0,len(day_start)):
+            for v in range(0,len(o_vf)):
+                if day_start[u] <= opt_s["shi_%s_sam_%d"%(b,a)][v][0] <= day_stop[u]:
+                    templ.append([gam_s["sam_%s"%a][u][2],opt_s["shi_%s_sam_%d"%(b,a)][v][1]])
+                    comp["sam_%s_shi_%d"%(a,b)] = templ
+        
+oval = []
+gval = []
+eavg_g = []
+eavg_o = [] 
+etime = 0  
+for a in range(-shift,shift+1):
+    hold_o = []
+    hold_g = []
+    hold_oe = []
+    hold_ge = [] 
+    for b in range(0,len(v_comp["val_%s"%a])):
+        hold_o.append(v_comp["val_%s"%a][b][2])
+        hold_g.append(v_comp["val_%s"%a][b][0])
+        hold_oe.append(v_comp["val_%s"%a][b][3])
+        hold_ge.append(v_comp["val_%s"%a][b][1])
+    oval.append([np.std(hold_o), np.mean(hold_o)])
+    gval.append([np.std(hold_g), np.mean(hold_g)])
+    eavg_g.append(np.mean(hold_ge))
+    eavg_o.append(np.mean(hold_oe))
+lccf = {}
+# # prog = 0 
+for i in range(0,nsamp):
+    lccf_s = [] 
+
+    for j in range(-shift,shift+1):
+        accu = 0 
+        for k in range(0, len(comp["sam_%s_shi_%d"%(i,j)])):
+            top = (comp["sam_%s_shi_%d"%(i,j)][k][0]- gval[j][1]) * (comp["sam_%s_shi_%d"%(i,j)][k][1]- oval[j][1])
+            bot = (gval[j][0] * oval[j][0])
+            frac = top/bot
+            accu += frac
+        lccf_s.append(accu/len(comp["sam_%s_shi_%d"%(i,j)]))
+    lccf[str(i)] = lccf_s
+
+for z in range(0,nsamp):
+    plt.scatter(xax,dcf[str(z)], s = 6)
+
+end = time.time()
+print("runtime = "  + str((end-st)/60) + " min")
+# plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\ " + str(nsamp) + "_" + str(shift), dpi = 500)
