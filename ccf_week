@@ -1,0 +1,172 @@
+"read in data, checking correlation of gamma dn optical fluxes."
+"shift weekly data by 7 days, 52shifts on either side, so the total result is [-1yr,+1yr]"
+"originally isolate V band, data, find v band data thats included within the week"
+"ensure that the correction to the ZTF data is done / check the result of it? "
+"the ztf correction only occurs in the R band, so while doing V is not relevant."
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+import time 
+start = time.time()
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_fermi.csv", newline='') as f:
+    reader = csv.reader(f)
+    week = list(reader)
+with open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_v0.csv", newline='') as f:
+    reader = csv.reader(f)
+    o_v = list(reader)
+o_b =  open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_b.txt")
+o_bmag = []
+o_bdate = []
+o_i =  open(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\bl_lac_i.txt")
+o_imag = []
+o_idate = [] 
+
+rc = 0 
+for row in o_b:
+    rc +=1 
+    spacecount = 0 
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1:
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                o_bmag.append(float(magi))
+            if row[i] == " ":
+                spacecount +=1
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != "MJD" : 
+        o_bdate.append(float(mjdi))
+rc = 0 
+for row in o_i:
+    rc +=1 
+    spacecount = 0 
+    "index the sheet through number of spaces as it is the only thing constant "
+    "due to varying number of sf in recorded data"
+    if rc > 1:
+        for i in range(0,len(row)-1):
+            if spacecount == 42:
+                rc +=1
+                magi = row[i+1:i+7]
+                o_imag.append(float(magi))
+            if row[i] == " ":
+                spacecount +=1
+    mjdi = row[0:17]
+    mjdi = mjdi.split(" ")[0]
+    if mjdi != "MJD" : 
+        o_idate.append(float(mjdi))
+
+o_vdate = []
+o_vmag = []
+test_stat = [] 
+week_start = []
+week_f = []
+week_stop = [] 
+for i in range(1,len(o_v)):
+    o_vmag.append(float(o_v[i][2]))
+    o_vdate.append(float(o_v[i][1]))
+for i in range(0,len(week)):
+    if week[i][13] == "FALSE":
+        week_start.append(float(week[i][0]))
+        week_stop.append(float(week[i][1]))
+        week_f.append(float(week[i][11]))
+        test_stat.append(float(week[i][15]))
+     
+"when using R Band data need to remove several datapoints that occur on the same day."
+o_rdatex = [] 
+o_rmagx = []
+for i in range(1,len(o_vdate)):
+    if int(str(o_vdate[i])[:5]) !=  int(str(o_vdate[i-1])[:5]):
+        o_rdatex.append(o_vdate[i])
+        o_rmagx.append(o_vmag[i])
+o_vmag = o_imag
+o_vdate = o_idate
+o_vf = []
+
+for k in range(1,len(o_vmag)):
+    o_vf.append(10**(-float(o_vmag[k])/2.5))
+    "units of jansky"
+# o_vf.reverse()
+for i in range(0,len(week_start)):
+    starter = week_start[i]/(86400)
+    week_start[i] = (starter + 51910)
+    stopper = week_stop[i]/86400
+    week_stop[i] = (stopper + 51910)
+"starting with 2 weeks either side"
+shift =52
+xax = np.linspace(-shift, shift, num = (shift*2)+1)
+c_gamma = [ list(a) for a in zip(week_start,week_stop,week_f)]
+c_opti = [ list(a) for a in zip(o_vdate, o_vf)]
+
+dct_v = {}
+for x in range(-shift,shift+1):
+    shift_factor = x * 7        
+    shifted_op = []
+    for j in range(0,len(c_opti)):
+        shifted_op.append([o_vdate[j] + shift_factor , o_vf[j]])
+        dct_v['lst_%s' % x] = shifted_op
+v_comp = {}
+datelook = {}
+for a in range(-shift,shift+1):
+    templ = []
+    datel = []
+
+    for u in range(0, len(week_start)):
+        for v in range(0,len(dct_v["lst_0"])):
+            if week_start[u] <= dct_v["lst_"+str(a)][v][0] <= week_stop[u]:
+                templ.append([week_f[u], dct_v["lst_"+ str(a)][v][1]])
+                datel.append([week_start[u],dct_v["lst_"+ str(a)][v][0], week_stop[u]])
+                v_comp["val_%s" %a] = templ
+                datelook["%s"%a] = datel
+                
+correlation = [] 
+correlation_n = []
+for i in range(-shift,shift+1):
+    summer = 0 
+    for k in range(0,len(v_comp["val_" + str(i)])):
+        summer += v_comp["val_" + str(i)][k][0] * v_comp["val_" + str(i)][k][1]
+    correlation.append(summer)
+    correlation_n.append(summer/len(v_comp["val_" + str(i)]))
+
+# plt.scatter(xax,correlation, s = 2, color = "blue")
+# plt.xlabel("Magnitude of Shift (Weeks)")
+# plt.ylabel("Corellation Factor")
+# # plt.xticks(np.arange(-50, 51, 10))
+# plt.title("B Band")
+# # plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\GO_CF_B25", dpi = 500)
+# plt.show()
+plt.figure()
+plt.scatter(xax,correlation_n, s = 2, color = "blue")
+plt.xlabel("Magnitude of Shift (Weeks)")
+plt.ylabel("Corellation Factor (Normalised)")
+plt.xticks(np.arange(-50, 51, 10))
+plt.title("V Band (CCF)")
+plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\52wGOc", dpi = 500)
+plt.show()
+# plt.figure()
+# hist_d = []
+# for j in range(-shift,shift+1):
+#     hist_d.append(len(v_comp["val_%s"%j]))
+    
+
+# fig, axs = plt.subplots(2,1, sharex=True, tight_layout=True)
+
+# fig.subplots_adjust(hspace=0)
+# # axs[0,0].scatter(xax,correlation_n, s = 2, color = "blue")
+# # plt.xlabel("Magnitude of Shift (Weeks)")
+# plt.ylabel("Corellation Factor (Normalised)")
+# # plt.xticks(np.arange(-50, 51, 10))
+# plt.title("B Band")
+# plt.tick_params('x', labelbottom=False)  
+# end = time.time()
+# print(end-start)
+
+
+# axs[1,0].bar(xax, hist_d, color ='maroon',
+#         width =1)
+# plt.ylim(470,520)
+    
