@@ -1,0 +1,128 @@
+import csv
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+import warnings
+import pandas as pd
+warnings.simplefilter(action='ignore', category=FutureWarning)
+start = time.time()
+plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['font.size'] = 12
+
+# gam = pd.read_csv(r"D:\1Work\L4PROJ\projdata\bl_lac_fermi.csv")
+gam = pd.read_csv(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\S50716_weekly_fermi.csv")
+gstart = list(gam["START"]) 
+gstop = list(gam["STOP"])
+gf = list(gam['FLUX_100_300000'])
+gfe = list(gam['ERROR_100_300000'])
+gul = list(gam["UL_100_300000"])
+gsta = []
+gsto = []
+gfl = [] 
+gfle = [] 
+for i in range(0,len(gstart)):
+    if gul[i] == False:
+        gsta.append(gstart[i])
+        gsto.append(gstop[i])
+        gfl.append(gf[i])
+        gfle.append(gfe[i])
+        
+for i in range(0,len(gsta)):
+    starter = gsta[i]/(86400)
+    gsta[i] = (starter + 51910)
+    stopper = gsto[i]/86400
+    gsto[i] = (stopper + 51910)
+
+
+rad = pd.read_csv(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectData\s50716_radio.csv")
+"sort into frequency bands then assign to rdate rf rfe for ease. "
+rdate = list(rad["mjd"])
+rf = list(rad["flux"])
+rfe = list(rad["flux_err"])
+
+nsamp = 100
+samps = np.random.normal(loc = 0, size = nsamp )
+d_day = {}
+d_opti = {}
+for i in range(0,nsamp):
+    optistor = [] 
+    gamstor = [] 
+    for j in range(0,len(rf)):
+        s_opt = rf[j] + rfe[j] * samps [i]
+        optistor.append(s_opt)
+    d_opti["samp_%s" %i]  = optistor
+
+    for k in range(0,len(gfl)):
+        s_gam = gfl[k] + gfle[k] * samps[i]
+        gamstor.append(s_gam)
+    d_day["samp_%s"%i] = gamstor
+    
+
+l_lim, u_lim = -110, -80
+xax = np.linspace(-110, -80, num = 31)
+opt_s = {}
+gam_s = {}
+for x in range(l_lim,u_lim+1):
+    shift_fact = x 
+    for y in range(0,nsamp):
+        shiftl = [] 
+        for z in range(0,len(rf)):
+           shiftl.append([rdate[z]+ shift_fact, d_opti["samp_%s"%y][z], rfe[z]])
+           opt_s["shi_%s_sam_%d"%(x,y)] = shiftl
+        
+for i in range(0,nsamp):      
+    shiftl = [] 
+    for j in range(0,len(gfl)):
+        shiftl.append([gsta[j],gsto[j],d_day["samp_%s"%i][j],gfle[j]])
+        gam_s["sam_%s"%i] = shiftl
+
+comp = {}
+for a in range(0,nsamp):
+    for b in range(l_lim,u_lim+1):
+        templ = []
+        for u in range(0,len(gsta)):
+            for v in range(0,len(rf)):
+                if gsta[u] <= opt_s["shi_%s_sam_%d"%(b,a)][v][0] <= gsto[u]:
+                    templ.append([gam_s["sam_%s"%a][u][2],gfle[u],opt_s["shi_%s_sam_%d"%(b,a)][v][1], rfe[v]])
+                    comp["sam_%s_shi_%d"%(a,b)] = templ
+        
+"need to get standard deviations, average values and errors."
+oval = []
+gval = []
+eavg_g = []
+eavg_o = [] 
+
+oval.append([np.std(rf), np.mean(rf)])
+gval.append([np.std(gfl), np.mean(gfl)])
+eavg_g = np.mean(gfle)
+eavg_o = np.mean(rfe)
+    
+
+dcf = {}
+# prog = 0 
+for i in range(0,nsamp):
+    dcf_s = [] 
+
+    for j in range(l_lim,u_lim+1):
+        accu = 0 
+        for k in range(0, len(comp["sam_%s_shi_%d"%(i,j)])):
+            top = (comp["sam_%s_shi_%d"%(i,j)][k][0]- gval[0][1]) * (comp["sam_%s_shi_%d"%(i,j)][k][2]- oval[0][1])
+            bot = np.sqrt((gval[0][0]**2 - eavg_g**2)* (oval[0][0]**2 - eavg_o**2))
+            frac = top/bot
+            accu += frac
+        dcf_s.append(accu/len(comp["sam_%s_shi_%d"%(i,j)]))
+    dcf[str(i)] = dcf_s
+"plot all of the different samples"
+plt.figure()
+for z in range(0,nsamp):
+    plt.scatter(xax,dcf[str(z)], s = 6)
+    
+#plt.xlabel("Magnitude of Shift (Days)")
+plt.ylabel("Direct Correlation Function")
+plt.title(str(nsamp) + " samples, shift +- %s days"%shift)
+
+print("runtime = "  + str((end-st)/60) + " min")
+plt.savefig(r"C:\Users\Lukaj\OneDrive\Documents\Y4\ProjectFig\ " + str(nsamp) + "_2shortDCF", dpi = 500)
+
+
+    
